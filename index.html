@@ -2,31 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WDW Resort TV - Ironclad Sync</title>
+    <title>WDW Resort TV - Final Fix</title>
     <style>
         :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
         body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
-        
         .header { width: 100%; border-bottom: 5px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; box-sizing: border-box; align-items: center; }
         .logo { font-size: 42px; font-weight: 900; letter-spacing: 2px; }
         .clock { font-size: 38px; color: var(--disney-gold); font-weight: bold; }
-
         .main-grid { display: flex; padding: 30px; height: calc(100vh - 200px); gap: 40px; }
         .left-col { width: 55%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
         .right-col { width: 45%; display: flex; flex-direction: column; }
-
         .section-title { color: var(--disney-gold); font-size: 28px; font-weight: bold; border-bottom: 4px solid var(--disney-gold); margin-bottom: 15px; text-transform: uppercase; }
-        
         .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
-        #wait-list { position: absolute; width: 100%; top: 0; will-change: transform; }
+        #wait-list { position: absolute; width: 100%; top: 0; }
         .wait-item { border-bottom: 1px solid rgba(255,255,255,0.15); padding: 12px 0; font-size: 24px; display: flex; justify-content: space-between; }
         .wait-val { color: var(--disney-gold); font-weight: 800; }
-
         .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
         .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; text-transform: uppercase; border: 2px solid currentColor; }
         .is-open { color: var(--open-green); }
         .is-closed { color: var(--closed-red); opacity: 0.6; }
-
         .footer { position: fixed; bottom: 10px; right: 20px; font-size: 12px; opacity: 0.6; color: var(--disney-gold); }
     </style>
 </head>
@@ -37,18 +31,17 @@
     </div>
     <div class="main-grid">
         <div class="left-col">
-            <div class="section-title" id="p-name">SYNCING...</div>
-            <div class="scroll-window"><div id="wait-list">Waiting for Disney Satellite Sync...</div></div>
+            <div class="section-title" id="p-name">STATION STANDBY</div>
+            <div class="scroll-window"><div id="wait-list">Connecting to Resort Feed...</div></div>
         </div>
         <div class="right-col">
             <div class="section-title">PARK STATUS</div>
-            <div id="status-disp">Calculating...</div>
+            <div id="status-disp">Initializing...</div>
         </div>
     </div>
-    <div class="footer" id="last-update">Network: Connecting...</div>
+    <div class="footer" id="last-update">Syncing...</div>
 
     <script>
-        // High-Reliability Proxy (corsproxy.io is generally faster)
         const PROXY = "https://corsproxy.io/?";
         const parks = [
             {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9"}, 
@@ -61,42 +54,44 @@
         let resortData = { status: {}, rides: {} };
 
         async function syncData() {
-            const cb = "&cb=" + Date.now();
             for (let p of parks) {
                 try {
-                    // 1. Get Status (Try with Proxy)
+                    // 1. Fetch Status
                     const sUrl = `https://api.themeparks.wiki/v1/entity/${p.wiki}/live`;
-                    const statusRes = await fetch(PROXY + encodeURIComponent(sUrl) + cb);
-                    const statusData = await statusRes.json();
-                    const parkEntry = statusData.find(item => item.entityType === "PARK");
-                    const isOpen = (parkEntry && parkEntry.status === "OPERATING");
+                    const sRes = await fetch(PROXY + encodeURIComponent(sUrl));
+                    const sData = await sRes.json();
+                    const pEntry = sData.find(i => i.entityType === "PARK");
+                    const isOpen = (pEntry && pEntry.status === "OPERATING");
                     resortData.status[p.n] = isOpen ? { label: "Open", class: "is-open" } : { label: "Closed", class: "is-closed" };
 
-                    // 2. Get Rides (Try with Proxy)
+                    // 2. Fetch Rides
                     const rUrl = `https://queue-times.com/parks/${p.id}/queue_times.json`;
-                    const rideRes = await fetch(PROXY + encodeURIComponent(rUrl) + cb);
-                    const rideData = await rideRes.json();
+                    const rRes = await fetch(PROXY + encodeURIComponent(rUrl));
+                    const rData = await rRes.json();
                     
-                    let flatRides = [];
-                    rideData.lands.forEach(l => l.rides.forEach(r => flatRides.push(r)));
-                    flatRides.sort((a,b) => b.wait_time - a.wait_time);
+                    let rides = [];
+                    rData.lands.forEach(l => l.rides.forEach(r => rides.push(r)));
+                    rides.sort((a,b) => b.wait_time - a.wait_time);
 
-                    resortData.rides[p.n] = flatRides.map(r => `
-                        <div class="wait-item">
-                            <span>${r.name.toUpperCase()}</span>
-                            <span class="wait-val">${(r.is_open && isOpen) ? r.wait_time + ' MIN' : 'CLOSED'}</span>
-                        </div>
-                    `).join('') || "<div class='wait-item'>NO RIDES FOUND</div>";
-
+                    if (rides.length > 0) {
+                        resortData.rides[p.n] = rides.map(r => `
+                            <div class="wait-item">
+                                <span>${r.name.toUpperCase()}</span>
+                                <span class="wait-val">${(r.is_open && isOpen) ? r.wait_time + ' MIN' : 'CLOSED'}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        // FIX: If no ride data returned (Late night), show this instead of "Refreshing"
+                        resortData.rides[p.n] = `<div class="wait-item"><span>PARK IS CURRENTLY CLOSED</span><span class="wait-val">---</span></div>`;
+                    }
                 } catch (e) { 
-                    console.warn("Retrying fetch for " + p.n);
-                    // If blocked, assume CLOSED because it's midnight in Orlando anyway
-                    if (!resortData.status[p.n]) resortData.status[p.n] = { label: "Closed", class: "is-closed" };
-                    if (!resortData.rides[p.n]) resortData.rides[p.n] = "<div class='wait-item'>LINK TEMPORARILY DOWN</div>";
+                    console.error(p.n, e);
+                    resortData.status[p.n] = { label: "Closed", class: "is-closed" };
+                    resortData.rides[p.n] = `<div class="wait-item"><span>LINK UNAVAILABLE</span><span class="wait-val">---</span></div>`;
                 }
             }
             renderStatus();
-            document.getElementById('last-update').innerText = "LAST SYNC: " + new Date().toLocaleTimeString();
+            document.getElementById('last-update').innerText = "DATA REFRESHED: " + new Date().toLocaleTimeString();
             if (curIdx === -1) rotate();
         }
 
@@ -113,7 +108,7 @@
             curIdx = (curIdx + 1) % parks.length;
             const p = parks[curIdx];
             document.getElementById('p-name').innerText = p.n.toUpperCase();
-            const content = resortData.rides[p.n] || "REFRESHING...";
+            const content = resortData.rides[p.n] || `<div class="wait-item"><span>STATION STANDBY</span><span class="wait-val">---</span></div>`;
             document.getElementById('wait-list').innerHTML = content + content;
             document.getElementById('wait-list').style.transform = `translateY(0px)`;
         }
@@ -135,10 +130,8 @@
             });
         }, 1000);
 
-        syncData(); 
-        setInterval(syncData, 300000); 
-        animate(); 
-        setInterval(rotate, 40000);
+        syncData(); setInterval(syncData, 300000);
+        animate(); setInterval(rotate, 40000);
     </script>
 </body>
 </html>
