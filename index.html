@@ -8,6 +8,7 @@
         * { box-sizing: border-box; }
         body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
         
+        /* Layout & Sections */
         .header { width: 100%; border-bottom: 6px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 15px 40px; align-items: center; }
         .logo { font-size: 32px; font-weight: 900; letter-spacing: 2px; }
         .clock { font-size: 30px; color: var(--disney-gold); font-weight: bold; }
@@ -19,10 +20,12 @@
         .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--disney-gold); margin-bottom: 10px; padding-bottom: 4px; }
         .section-title { color: var(--disney-gold); font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; }
         
+        /* Interactive Buttons */
         .sync-btn { background: var(--disney-gold); color: var(--disney-blue); border: none; padding: 4px 12px; font-size: 10px; font-weight: 900; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
         .sync-btn:hover { background: white; }
         .loading { opacity: 0.5; cursor: wait; pointer-events: none; }
 
+        /* Data Displays */
         .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
         #wait-list { position: absolute; width: 100%; top: 0; transition: transform 0.1s linear; }
         .wait-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; font-size: 18px; display: flex; justify-content: space-between; }
@@ -54,7 +57,7 @@
                 <button id="btn-waits" class="sync-btn" onclick="syncWaitTimes()">Re-Sync Waits</button>
             </div>
             <div class="scroll-window"><div id="wait-list">SATELLITE SEARCHING...</div></div>
-            <div id="ts-waits" class="sync-ts">WAIT SYNC: OFFLINE</div>
+            <div id="ts-waits" class="sync-ts">WAIT SYNC: PENDING</div>
         </div>
 
         <div class="right-col">
@@ -64,7 +67,7 @@
                     <button id="btn-status" class="sync-btn" onclick="syncStatus()">Re-Sync Status</button>
                 </div>
                 <div id="status-disp" class="status-grid">Connecting...</div>
-                <div id="ts-status" class="sync-ts">STATUS SYNC: OFFLINE</div>
+                <div id="ts-status" class="sync-ts">STATUS SYNC: PENDING</div>
             </div>
 
             <div style="margin-top:10px;">
@@ -84,6 +87,13 @@
     </div>
 
     <script>
+        // Rotating proxy list to bypass GitHub Pages CORS blocks
+        const PROXIES = [
+            "https://proxy.cors.sh/",
+            "https://corsproxy.io/?",
+            "https://api.allorigins.win/raw?url="
+        ];
+        
         const parks = [
             {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9"}, 
             {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b"}, 
@@ -93,12 +103,14 @@
 
         let curIdx = -1, resortData = { status: {}, rides: {} }, scrollY = 0, direction = -1, isPaused = true;
 
-        // The "Cloud-Proxy" strategy
-        async function cloudFetch(url) {
-            const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error();
-            return await response.json();
+        async function fetchWithProxy(url) {
+            for (let proxy of PROXIES) {
+                try {
+                    const res = await fetch(proxy + encodeURIComponent(url));
+                    if (res.ok) return await res.json();
+                } catch (e) { console.warn(`Proxy ${proxy} failed, trying next...`); }
+            }
+            throw new Error("Critical: Data link unreachable.");
         }
 
         async function syncWaitTimes() {
@@ -108,14 +120,14 @@
             
             for (let p of parks) {
                 try {
-                    const data = await cloudFetch(`https://queue-times.com/parks/${p.id}/queue_times.json`);
+                    const data = await fetchWithProxy(`https://queue-times.com/parks/${p.id}/queue_times.json`);
                     let rides = [];
                     data.lands.forEach(l => l.rides.forEach(r => rides.push(r)));
                     rides.sort((a,b) => b.wait_time - a.wait_time);
                     resortData.rides[p.n] = rides.map(r => `
                         <div class="wait-item"><span>${r.name.toUpperCase()}</span><span class="wait-val">${r.is_open ? r.wait_time + ' MIN' : 'CLOSED'}</span></div>
                     `).join('');
-                } catch (e) { resortData.rides[p.n] = `<div class="wait-item"><span>LINK TIMEOUT - RETRYING</span></div>`; }
+                } catch (e) { resortData.rides[p.n] = `<div class="wait-item"><span>LINK BUSY... RETRYING</span></div>`; }
             }
             if (curIdx === -1) rotate();
             document.getElementById('ts-waits').innerText = "WAIT SYNC: " + new Date().toLocaleTimeString();
@@ -131,7 +143,7 @@
             let html = '';
             for (let p of parks) {
                 try {
-                    const data = await cloudFetch(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live`);
+                    const data = await fetchWithProxy(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live`);
                     const park = data.find(i => i.entityType === "PARK") || data[0];
                     const isOpen = park.status === "OPERATING" || park.status === "OPEN";
                     const s = isOpen ? { l: "Open", c: "is-open" } : { l: "Closed", c: "is-closed" };
@@ -173,12 +185,11 @@
             requestAnimationFrame(animate);
         }
 
-        // Clock & Intervals
+        // Clock & Static Forecast
         setInterval(() => {
             document.getElementById('p-clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', timeZone: 'America/New_York'});
         }, 1000);
 
-        // Daily Forecast (Static for layout stability)
         function renderForecast() {
             const forecast = [{ i: "⛈️", h: 79 }, { i: "☀️", h: 82 }, { i: "⛅", h: 85 }];
             let html = "";
@@ -189,7 +200,7 @@
             document.getElementById('weather-disp').innerHTML = html;
         }
 
-        // Boot
+        // Initialize
         renderForecast();
         syncWaitTimes();
         syncStatus();
