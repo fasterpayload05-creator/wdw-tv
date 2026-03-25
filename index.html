@@ -1,134 +1,175 @@
-<script>
-    // Primary and Fallback Proxies
-    const PROXY_LIST = [
-        "https://api.allorigins.win/raw?url=",
-        "https://corsproxy.io/?",
-        "https://thingproxy.freeboard.io/fetch/"
-    ];
-    let currentProxyIdx = 0;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WDW Resort TV - Live Feed</title>
+    <style>
+        :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
+        
+        .header { width: 100%; border-bottom: 6px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; align-items: center; }
+        .logo { font-size: 38px; font-weight: 900; letter-spacing: 2px; }
+        .clock { font-size: 34px; color: var(--disney-gold); font-weight: bold; }
 
-    const parks = [
-        {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9", backup: ["TRON Lightcycle Run", "Seven Dwarfs Mine Train", "Space Mountain", "Big Thunder Mountain", "Tiana's Bayou Adventure", "Jungle Cruise"]}, 
-        {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b", backup: ["Cosmic Rewind", "Ratatouille Adventure", "Frozen Ever After", "Test Track", "Soarin'"]}, 
-        {id:7, n:"Hollywood Studios", wiki:"288747d1-8b4f-4a4a-9897-5363d5fef940", backup: ["Rise of the Resistance", "Slinky Dog Dash", "Runaway Railway", "Tower of Terror"]}, 
-        {id:8, n:"Animal Kingdom", wiki:"1c8a40f3-d096-48d8-9419-f9c1186e885a", backup: ["Flight of Passage", "Na'vi River Journey", "Expedition Everest", "Kilimanjaro Safaris"]}
-    ];
+        .main-grid { display: flex; padding: 25px; height: calc(100vh - 160px); gap: 30px; }
+        .left-col { width: 50%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
+        .right-col { width: 50%; display: flex; flex-direction: column; gap: 10px; }
 
-    let curIdx = -1, resortData = { status: {}, rides: {} }, scrollY = 0, direction = -1, isPaused = true;
+        .section-title { color: var(--disney-gold); font-size: 20px; font-weight: bold; border-bottom: 3px solid var(--disney-gold); margin-bottom: 10px; text-transform: uppercase; padding-bottom: 4px; }
+        
+        .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
+        #wait-list { position: absolute; width: 100%; top: 0; transition: transform 0.1s linear; }
+        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; font-size: 19px; display: flex; justify-content: space-between; }
+        .wait-val { color: var(--disney-gold); font-weight: bold; }
 
-    async function syncData() {
-        const dot = document.getElementById('sync-dot');
-        const footer = document.getElementById('last-update');
-        dot.style.background = 'orange';
-        footer.innerText = "ATTEMPTING SATELLITE HANDSHAKE...";
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 5px 0; display: flex; justify-content: space-between; font-size: 15px; }
+        .status-pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 900; border: 2px solid currentColor; }
+        
+        .day-card { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 2px solid var(--disney-gold); text-align: center; }
+        .weather-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .current-box { display: flex; align-items: center; justify-content: space-around; background: rgba(255,204,0,0.1); margin-bottom: 5px; }
 
-        for (let p of parks) {
-            let html = "";
+        .is-open { color: var(--open-green); }
+        .is-closed { color: var(--closed-red); opacity: 0.6; }
+        .footer { position: fixed; bottom: 8px; right: 20px; font-size: 11px; color: var(--disney-gold); opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">WALT DISNEY WORLD</div>
+        <div id="p-clock" class="clock">--:--</div>
+    </div>
+
+    <div class="main-grid">
+        <div class="left-col">
+            <div class="section-title" id="p-name">STATION STANDBY</div>
+            <div class="scroll-window"><div id="wait-list">Connecting to Resort Satellite...</div></div>
+        </div>
+
+        <div class="right-col">
+            <div class="section-title">RESORT PARK STATUS</div>
+            <div id="status-disp" class="status-grid">Initializing...</div>
+
+            <div class="section-title">CURRENT CONDITIONS</div>
+            <div class="day-card current-box">
+                <div style="font-weight:bold; color:var(--disney-gold)">ORLANDO</div>
+                <div style="font-size:48px;">⛈️</div>
+                <div style="font-size:38px; font-weight:900;">78°</div>
+            </div>
+
+            <div class="section-title" style="margin-top:10px;">3-DAY FORECAST</div>
+            <div class="weather-box" id="weather-disp"></div>
+        </div>
+    </div>
+
+    <div class="footer" id="last-update">SATELLITE SYNC: PENDING</div>
+
+    <script>
+        // Reliability Proxy
+        const PROXY = "https://api.allorigins.win/raw?url=";
+        
+        const parks = [
+            {id:6, n:"Magic Kingdom", backup: ["TRON Lightcycle", "Space Mountain", "Haunted Mansion", "Pirates", "Jungle Cruise"]}, 
+            {id:5, n:"EPCOT", backup: ["Cosmic Rewind", "Frozen Ever After", "Ratatouille", "Soarin'", "Spaceship Earth"]}, 
+            {id:7, n:"Hollywood Studios", backup: ["Rise of Resistance", "Slinky Dog", "Tower of Terror", "Rock 'n' Roller"]}, 
+            {id:8, n:"Animal Kingdom", backup: ["Flight of Passage", "Everest", "Kilimanjaro Safaris", "Dinosaur"]}
+        ];
+
+        let curIdx = -1, resortData = { status: {}, rides: {} }, scrollY = 0, direction = -1, isPaused = true;
+
+        async function syncData() {
             try {
-                // Try to get live data
-                const activeProxy = PROXY_LIST[currentProxyIdx];
-                const rUrl = `https://queue-times.com/parks/${p.id}/queue_times.json`;
-                const response = await fetch(activeProxy + encodeURIComponent(rUrl));
-                
-                if (!response.ok) throw new Error("Proxy Refused Connection");
-                
-                const rData = await response.json();
-                let rides = [];
-                rData.lands.forEach(l => l.rides.forEach(r => rides.push(r)));
+                for (let p of parks) {
+                    const url = `https://queue-times.com/parks/${p.id}/queue_times.json`;
+                    const response = await fetch(PROXY + encodeURIComponent(url));
+                    if (!response.ok) throw new Error();
+                    const data = await response.json();
+                    
+                    let rideList = [];
+                    data.lands.forEach(l => l.rides.forEach(r => rideList.push(r)));
+                    rideList.sort((a,b) => b.wait_time - a.wait_time);
 
-                if (rides.length > 0) {
-                    rides.sort((a,b) => b.wait_time - a.wait_time);
-                    html = rides.map(r => `
+                    resortData.status[p.n] = { label: "Open", class: "is-open" };
+                    resortData.rides[p.n] = rideList.map(r => `
                         <div class="wait-item">
                             <span>${r.name.toUpperCase()}</span>
                             <span class="wait-val">${r.is_open ? r.wait_time + ' MIN' : 'CLOSED'}</span>
                         </div>
                     `).join('');
-                    resortData.status[p.n] = { label: "Open", class: "is-open" };
                 }
             } catch (e) {
-                console.error(`Sync Error for ${p.n}:`, e);
-                // Cycle proxy if we hit a wall
-                currentProxyIdx = (currentProxyIdx + 1) % PROXY_LIST.length;
+                console.log("Using backup data...");
+                parks.forEach(p => {
+                    resortData.status[p.n] = { label: "OFFLINE", class: "is-closed" };
+                    resortData.rides[p.n] = p.backup.map(b => `<div class="wait-item"><span>${b.toUpperCase()}</span><span class="wait-val">--</span></div>`).join('');
+                });
             }
-
-            // If live data failed, show backup with "SYNC ERROR" label
-            if (!html) {
-                html = p.backup.map(name => `
-                    <div class="wait-item" style="opacity:0.5">
-                        <span>${name.toUpperCase()}</span>
-                        <span class="wait-val">REFRESHING...</span>
-                    </div>
-                `).join('');
-                resortData.status[p.n] = { label: "OFFLINE", class: "is-closed" };
-            }
-            resortData.rides[p.n] = html;
+            renderStatus();
+            renderWeather();
+            if (curIdx === -1) rotate();
+            document.getElementById('last-update').innerText = "LIVE SYNC: " + new Date().toLocaleTimeString();
         }
-        
-        renderStatus();
-        renderWeather();
-        if (curIdx === -1) rotate();
-        
-        dot.style.background = '#00FF88';
-        footer.innerText = "SATELLITE LINK ACTIVE: " + new Date().toLocaleTimeString();
-    }
 
-    function renderStatus() {
-        let html = ''; parks.forEach(p => {
-            const s = resortData.status[p.n] || { label: "Closed", class: "is-closed" };
-            html += `<div class="status-item"><b>${p.n}</b><span class="status-pill ${s.class}">${s.label}</span></div>`;
-        });
-        document.getElementById('status-disp').innerHTML = html;
-    }
+        function renderStatus() {
+            let html = ''; 
+            parks.forEach(p => {
+                const s = resortData.status[p.n] || { label: "Wait", class: "is-closed" };
+                html += `<div class="status-item"><b>${p.n}</b><span class="status-pill ${s.class}">${s.label}</span></div>`;
+            });
+            document.getElementById('status-disp').innerHTML = html;
+        }
 
-    function renderWeather() {
-        const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        const now = new Date();
-        let html = "";
-        // Hardcoded live forecast for March 25, 2026
-        const forecast = [{ icon: "⛈️", l: 65, h: 78 }, { icon: "☀️", l: 67, h: 82 }, { icon: "⛅", l: 68, h: 85 }];
-        forecast.forEach((f, i) => {
-            const d = new Date(); d.setDate(now.getDate() + i);
-            html += `<div class="day-card"><div class="day-name">${i === 0 ? "TODAY" : days[d.getDay()]}</div><div class="weather-icon">${f.icon}</div><div class="temp">${f.h}°/${f.l}°</div></div>`;
-        });
-        document.getElementById('weather-disp').innerHTML = html;
-    }
+        function renderWeather() {
+            const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+            const now = new Date();
+            let html = "";
+            const forecast = [{ icon: "⛈️", h: 78 }, { icon: "☀️", h: 82 }, { icon: "⛅", h: 85 }];
+            forecast.forEach((f, i) => {
+                const d = new Date(); d.setDate(now.getDate() + i);
+                html += `<div class="day-card"><div>${i === 0 ? "TODAY" : days[d.getDay()]}</div><div style="font-size:30px">${f.icon}</div><div style="font-weight:bold">${f.h}°</div></div>`;
+            });
+            document.getElementById('weather-disp').innerHTML = html;
+        }
 
-    function rotate() {
-        isPaused = true;
-        curIdx = (curIdx + 1) % 4;
-        const p = parks[curIdx];
-        document.getElementById('p-name').innerText = p.n.toUpperCase();
-        document.getElementById('wait-list').innerHTML = resortData.rides[p.n];
-        scrollY = 0; direction = -1;
-        document.getElementById('wait-list').style.transform = `translateY(0px)`;
-        setTimeout(() => { isPaused = false; }, 3000); 
-    }
+        function rotate() {
+            isPaused = true;
+            curIdx = (curIdx + 1) % 4;
+            const p = parks[curIdx];
+            document.getElementById('p-name').innerText = p.n.toUpperCase();
+            document.getElementById('wait-list').innerHTML = resortData.rides[p.n];
+            scrollY = 0; direction = -1;
+            document.getElementById('wait-list').style.transform = `translateY(0px)`;
+            setTimeout(() => { isPaused = false; }, 3000); 
+        }
 
-    function animate() {
-        if (!isPaused) {
-            const list = document.getElementById('wait-list');
-            const winH = document.querySelector('.scroll-window').offsetHeight;
-            const listH = list.offsetHeight;
-            if (listH > winH) {
-                scrollY += (0.8 * direction);
-                if (Math.abs(scrollY) >= (listH - winH + 40) && direction === -1) {
-                    isPaused = true; direction = 1; setTimeout(() => isPaused = false, 4000);
-                } else if (scrollY >= 0 && direction === 1) {
-                    isPaused = true; direction = -1; setTimeout(() => isPaused = false, 4000);
+        function animate() {
+            if (!isPaused) {
+                const list = document.getElementById('wait-list');
+                const winH = document.querySelector('.scroll-window').offsetHeight;
+                const listH = list.offsetHeight;
+                if (listH > winH) {
+                    scrollY += (0.8 * direction);
+                    if (Math.abs(scrollY) >= (listH - winH + 40) && direction === -1) {
+                        isPaused = true; direction = 1; setTimeout(() => isPaused = false, 4000);
+                    } else if (scrollY >= 0 && direction === 1) {
+                        isPaused = true; direction = -1; setTimeout(() => isPaused = false, 4000);
+                    }
+                    list.style.transform = `translateY(${scrollY}px)`;
                 }
-                list.style.transform = `translateY(${scrollY}px)`;
             }
+            requestAnimationFrame(animate);
         }
-        requestAnimationFrame(animate);
-    }
 
-    setInterval(() => {
-        document.getElementById('p-clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', timeZone: 'America/New_York'});
-    }, 1000);
+        setInterval(() => {
+            document.getElementById('p-clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', timeZone: 'America/New_York'});
+        }, 1000);
 
-    syncData();
-    animate(); 
-    setInterval(syncData, 180000); // Sync every 3 mins
-    setInterval(rotate, 45000); // Rotate park every 45 seconds
-</script>
+        syncData();
+        animate(); 
+        setInterval(syncData, 300000);
+        setInterval(rotate, 45000);
+    </script>
+</body>
+</html>
