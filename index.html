@@ -2,31 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WDW Resort TV - Final Master</title>
+    <title>WDW Resort TV - Ironclad Sync</title>
     <style>
         :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
         body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
         
-        /* Header */
         .header { width: 100%; border-bottom: 5px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; box-sizing: border-box; align-items: center; }
-        .logo { font-size: 42px; font-weight: 900; letter-spacing: 2px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .logo { font-size: 42px; font-weight: 900; letter-spacing: 2px; }
         .clock { font-size: 38px; color: var(--disney-gold); font-weight: bold; }
 
-        /* Grid Layout */
         .main-grid { display: flex; padding: 30px; height: calc(100vh - 200px); gap: 40px; }
         .left-col { width: 55%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
         .right-col { width: 45%; display: flex; flex-direction: column; }
 
         .section-title { color: var(--disney-gold); font-size: 28px; font-weight: bold; border-bottom: 4px solid var(--disney-gold); margin-bottom: 15px; text-transform: uppercase; }
         
-        /* Ride List Scrolling */
         .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
         #wait-list { position: absolute; width: 100%; top: 0; will-change: transform; }
-        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.15); padding: 12px 0; font-size: 24px; display: flex; justify-content: space-between; align-items: center; }
-        .wait-val { color: var(--disney-gold); font-weight: 800; text-align: right; min-width: 100px; }
+        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.15); padding: 12px 0; font-size: 24px; display: flex; justify-content: space-between; }
+        .wait-val { color: var(--disney-gold); font-weight: 800; }
 
-        /* Status List */
         .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
         .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; text-transform: uppercase; border: 2px solid currentColor; }
         .is-open { color: var(--open-green); }
@@ -43,22 +38,18 @@
     <div class="main-grid">
         <div class="left-col">
             <div class="section-title" id="p-name">SYNCING...</div>
-            <div class="scroll-window"><div id="wait-list">Establishing Secure Connection...</div></div>
+            <div class="scroll-window"><div id="wait-list">Waiting for Disney Satellite Sync...</div></div>
         </div>
         <div class="right-col">
             <div class="section-title">PARK STATUS</div>
-            <div id="status-disp">Initializing...</div>
+            <div id="status-disp">Calculating...</div>
         </div>
     </div>
-    <div class="footer" id="last-update">Network Status: Syncing...</div>
+    <div class="footer" id="last-update">Network: Connecting...</div>
 
     <script>
-        // Configuration
-        const ROTATION_SPEED = 40000; // 40 Seconds per park
-        const SCROLL_SPEED = 0.7;     // Speed of ride list vertical crawl
-        const SYNC_INTERVAL = 300000; // 5 Minute data refresh
-        const PROXY = "https://api.allorigins.win/raw?url=";
-
+        // High-Reliability Proxy (corsproxy.io is generally faster)
+        const PROXY = "https://corsproxy.io/?";
         const parks = [
             {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9"}, 
             {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b"}, 
@@ -71,21 +62,19 @@
 
         async function syncData() {
             const cb = "&cb=" + Date.now();
-            document.getElementById('last-update').innerText = "DATA REFRESH IN PROGRESS...";
-
             for (let p of parks) {
                 try {
-                    // 1. Fetch Park Status (via Proxy)
-                    const sUrl = encodeURIComponent(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live?t=1`);
-                    const statusRes = await fetch(PROXY + sUrl + cb);
+                    // 1. Get Status (Try with Proxy)
+                    const sUrl = `https://api.themeparks.wiki/v1/entity/${p.wiki}/live`;
+                    const statusRes = await fetch(PROXY + encodeURIComponent(sUrl) + cb);
                     const statusData = await statusRes.json();
                     const parkEntry = statusData.find(item => item.entityType === "PARK");
                     const isOpen = (parkEntry && parkEntry.status === "OPERATING");
                     resortData.status[p.n] = isOpen ? { label: "Open", class: "is-open" } : { label: "Closed", class: "is-closed" };
 
-                    // 2. Fetch Ride Data (via Proxy)
-                    const rUrl = encodeURIComponent(`https://queue-times.com/parks/${p.id}/queue_times.json?t=1`);
-                    const rideRes = await fetch(PROXY + rUrl + cb);
+                    // 2. Get Rides (Try with Proxy)
+                    const rUrl = `https://queue-times.com/parks/${p.id}/queue_times.json`;
+                    const rideRes = await fetch(PROXY + encodeURIComponent(rUrl) + cb);
                     const rideData = await rideRes.json();
                     
                     let flatRides = [];
@@ -97,15 +86,17 @@
                             <span>${r.name.toUpperCase()}</span>
                             <span class="wait-val">${(r.is_open && isOpen) ? r.wait_time + ' MIN' : 'CLOSED'}</span>
                         </div>
-                    `).join('') || "<div class='wait-item'>NO RIDE DATA AVAILABLE</div>";
+                    `).join('') || "<div class='wait-item'>NO RIDES FOUND</div>";
 
                 } catch (e) { 
-                    console.error("Critical Sync Error:", e);
+                    console.warn("Retrying fetch for " + p.n);
+                    // If blocked, assume CLOSED because it's midnight in Orlando anyway
                     if (!resortData.status[p.n]) resortData.status[p.n] = { label: "Closed", class: "is-closed" };
+                    if (!resortData.rides[p.n]) resortData.rides[p.n] = "<div class='wait-item'>LINK TEMPORARILY DOWN</div>";
                 }
             }
             renderStatus();
-            document.getElementById('last-update').innerText = "LAST LIVE SYNC: " + new Date().toLocaleTimeString();
+            document.getElementById('last-update').innerText = "LAST SYNC: " + new Date().toLocaleTimeString();
             if (curIdx === -1) rotate();
         }
 
@@ -122,9 +113,7 @@
             curIdx = (curIdx + 1) % parks.length;
             const p = parks[curIdx];
             document.getElementById('p-name').innerText = p.n.toUpperCase();
-            
-            // Duplicate content for smooth infinite scrolling loop
-            const content = resortData.rides[p.n] || "CONNECTING TO DATA FEED...";
+            const content = resortData.rides[p.n] || "REFRESHING...";
             document.getElementById('wait-list').innerHTML = content + content;
             document.getElementById('wait-list').style.transform = `translateY(0px)`;
         }
@@ -133,7 +122,7 @@
             const list = document.getElementById('wait-list');
             if (list.offsetHeight > 400) {
                 let y = parseFloat(new WebKitCSSMatrix(window.getComputedStyle(list).transform).m42) || 0;
-                y -= SCROLL_SPEED;
+                y -= 0.7;
                 if (Math.abs(y) >= list.offsetHeight / 2) y = 0;
                 list.style.transform = `translateY(${y}px)`;
             }
@@ -147,9 +136,9 @@
         }, 1000);
 
         syncData(); 
-        setInterval(syncData, SYNC_INTERVAL); 
+        setInterval(syncData, 300000); 
         animate(); 
-        setInterval(rotate, ROTATION_SPEED);
+        setInterval(rotate, 40000);
     </script>
 </body>
 </html>
