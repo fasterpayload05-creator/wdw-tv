@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WDW Resort TV - Dual-Engine Sync</title>
+    <style>
+        :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
+        body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
+        
+        .header { width: 100%; border-bottom: 5px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; box-sizing: border-box; }
+        .logo { font-size: 42px; font-weight: 900; letter-spacing: 2px; }
+        .clock { font-size: 38px; color: var(--disney-gold); font-weight: bold; }
+
+        .main-grid { display: flex; padding: 30px; height: calc(100vh - 200px); gap: 40px; }
+        .left-col { width: 55%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
+        .right-col { width: 45%; display: flex; flex-direction: column; }
+
+        .section-title { color: var(--disney-gold); font-size: 28px; font-weight: bold; border-bottom: 4px solid var(--disney-gold); margin-bottom: 15px; text-transform: uppercase; }
+        
+        .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
+        #wait-list { position: absolute; width: 100%; top: 0; }
+        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.15); padding: 12px 0; font-size: 24px; display: flex; justify-content: space-between; }
+        .wait-val { color: var(--disney-gold); font-weight: 800; }
+
+        .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; text-transform: uppercase; border: 2px solid currentColor; }
+        .is-open { color: var(--open-green); }
+        .is-closed { color: var(--closed-red); opacity: 0.6; }
+
+        .footer { position: fixed; bottom: 10px; right: 20px; font-size: 12px; opacity: 0.6; color: var(--disney-gold); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">WALT DISNEY WORLD</div>
+        <div id="p-clock" class="clock">--:--</div>
+    </div>
+    <div class="main-grid">
+        <div class="left-col">
+            <div class="section-title" id="p-name">SYNCING...</div>
+            <div class="scroll-window"><div id="wait-list">Connecting to Live Feed...</div></div>
+        </div>
+        <div class="right-col">
+            <div class="section-title">PARK STATUS</div>
+            <div id="status-disp">Calculating...</div>
+        </div>
+    </div>
+    <div class="footer" id="last-update">Initializing...</div>
+
+    <script>
+        const parks = [
+            {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9"}, 
+            {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b"}, 
+            {id:7, n:"Hollywood Studios", wiki:"288747d1-8b4f-4a4a-9897-5363d5fef940"}, 
+            {id:8, n:"Animal Kingdom", wiki:"1c8a40f3-d096-48d8-9419-f9c1186e885a"}
+        ];
+        
+        let curIdx = -1;
+        let resortData = { status: {}, rides: {} };
+
+        async function syncData() {
+            const cb = "?cb=" + Date.now();
+            for (let p of parks) {
+                try {
+                    // ENGINE 1: STATUS CHECK (Uses Wiki Live Endpoint)
+                    const statusRes = await fetch(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live${cb}`);
+                    const statusData = await statusRes.json();
+                    const parkEntry = statusData.find(item => item.entityType === "PARK");
+                    const isOpen = (parkEntry && parkEntry.status === "OPERATING");
+                    
+                    resortData.status[p.n] = isOpen ? { label: "Open", class: "is-open" } : { label: "Closed", class: "is-closed" };
+
+                    // ENGINE 2: RIDE DATA (Uses Direct JSON Endpoint)
+                    const rideRes = await fetch(`https://queue-times.com/parks/${p.id}/queue_times.json${cb}`);
+                    const rideData = await rideRes.json();
+                    
+                    let flatRides = [];
+                    rideData.lands.forEach(land => {
+                        land.rides.forEach(ride => {
+                            flatRides.push(ride);
+                        });
+                    });
+                    
+                    flatRides.sort((a,b) => b.wait_time - a.wait_time);
+
+                    resortData.rides[p.n] = flatRides.map(r => `
+                        <div class="wait-item">
+                            <span>${r.name.toUpperCase()}</span>
+                            <span class="wait-val">${(r.is_open && isOpen) ? r.wait_time + ' MIN' : 'CLOSED'}</span>
+                        </div>
+                    `).join('') || "<div class='wait-item'>NO RIDE DATA</div>";
+
+                } catch (e) { 
+                    console.error("Error with " + p.n, e);
+                    // Critical Fallback
+                    if (!resortData.status[p.n]) resortData.status[p.n] = { label: "Closed", class: "is-closed" };
+                }
+            }
+            renderStatus();
+            document.getElementById('last-update').innerText = "LIVE SYNC: " + new Date().toLocaleTimeString();
+            if (curIdx === -1) rotate();
+        }
+
+        function renderStatus() {
+            let html = '';
+            parks.forEach(p => {
+                const s = resortData.status[p.n] || { label: "Closed", class: "is-closed" };
+                html += `<div class="status-item"><b>${p.n}</b><span class="status-pill ${s.class}">${s.label}</span></div>`;
+            });
+            document.getElementById('status-disp').innerHTML = html;
+        }
+
+        function rotate() {
+            curIdx = (curIdx + 1) % parks.length;
+            const p = parks[curIdx];
+            document.getElementById('p-name').innerText = p.n.toUpperCase();
+            const listContent = resortData.rides[p.n] || "REFRESHING RIDE DATA...";
+            document.getElementById('wait-list').innerHTML = listContent + listContent;
+            document.getElementById('wait-list').style.transform = `translateY(0px)`;
+        }
+
+        function animate() {
+            const list = document.getElementById('wait-list');
+            if (list.offsetHeight > 400) {
+                let y = parseFloat(new WebKitCSSMatrix(window.getComputedStyle(list).transform).m42) || 0;
+                y -= 0.7; // Scrolling Speed
+                if (Math.abs(y) >= list.offsetHeight / 2) y = 0;
+                list.style.transform = `translateY(${y}px)`;
+            }
+            requestAnimationFrame(animate);
+        }
+
+        setInterval(() => {
+            document.getElementById('p-clock').innerText = new Date().toLocaleTimeString([], {
+                hour:'2-digit', minute:'2-digit', timeZone: 'America/New_York'
+            });
+        }, 1000);
+
+        syncData(); 
+        setInterval(syncData, 120000); // 2-minute refresh
+        animate(); 
+        setInterval(rotate, 40000); // 40-second park rotation
+    </script>
+</body>
+</html>
