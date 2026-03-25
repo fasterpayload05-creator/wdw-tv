@@ -2,42 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WDW Resort TV - Live Weather Edition</title>
+    <title>WDW Resort TV - Streamlined Edition</title>
     <style>
         :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
         body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
         
+        /* Header */
         .header { width: 100%; border-bottom: 6px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; box-sizing: border-box; align-items: center; }
         .logo { font-size: 42px; font-weight: 900; letter-spacing: 2px; }
         .clock { font-size: 38px; color: var(--disney-gold); font-weight: bold; }
 
+        /* Layout */
         .main-grid { display: flex; padding: 25px; height: calc(100vh - 180px); gap: 30px; }
         .left-col { width: 50%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
         .right-col { width: 50%; display: flex; flex-direction: column; gap: 10px; }
 
         .section-title { color: var(--disney-gold); font-size: 22px; font-weight: bold; border-bottom: 3px solid var(--disney-gold); margin-bottom: 8px; text-transform: uppercase; padding-bottom: 4px; }
         
+        /* Scrolling List */
         .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
         #wait-list { position: absolute; width: 100%; top: 0; will-change: transform; }
         .wait-item { border-bottom: 1px solid rgba(255,255,255,0.15); padding: 8px 0; font-size: 20px; display: flex; justify-content: space-between; align-items: center; }
         .wait-val { color: var(--disney-gold); font-weight: 800; min-width: 90px; text-align: right; }
 
-        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 5px; }
+        /* Park Status Grid */
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
         .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 6px 0; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
         .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; text-transform: uppercase; border: 2px solid currentColor; }
         
         /* Weather Styles */
         .weather-box { display: flex; justify-content: space-between; gap: 10px; }
-        .day-card { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; flex: 1; text-align: center; border: 2px solid var(--disney-gold); }
-        .day-name { font-weight: bold; color: var(--disney-gold); font-size: 14px; }
-        .weather-icon { font-size: 32px; margin: 5px 0; }
+        .day-card { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; flex: 1; text-align: center; border: 2px solid var(--disney-gold); }
+        .day-name { font-weight: bold; color: var(--disney-gold); font-size: 14px; text-transform: uppercase; }
+        .weather-icon { font-size: 36px; margin: 8px 0; }
         .temp { font-size: 18px; font-weight: bold; }
 
-        /* Current Weather Row */
-        .current-weather-row { background: rgba(255,204,0,0.15); border: 2px solid var(--disney-gold); border-radius: 8px; padding: 12px; display: flex; justify-content: space-around; align-items: center; margin-top: 5px; }
-        .cur-stat { text-align: center; }
-        .cur-label { font-size: 12px; color: var(--disney-gold); font-weight: bold; text-transform: uppercase; }
-        .cur-val { font-size: 22px; font-weight: 900; }
+        /* Current Weather Specific Style */
+        .current-box { background: rgba(255, 204, 0, 0.1); border-color: white; flex: none; width: 100%; display: flex; align-items: center; justify-content: space-around; }
+        .current-temp-large { font-size: 32px; font-weight: 900; color: white; }
 
         .is-open { color: var(--open-green); }
         .is-closed { color: var(--closed-red); opacity: 0.6; }
@@ -60,16 +62,15 @@
             <div class="section-title">RESORT PARK STATUS</div>
             <div id="status-disp" class="status-grid">Updating...</div>
 
-            <div class="section-title">3-DAY ORLANDO FORECAST</div>
-            <div class="weather-box" id="weather-disp"></div>
-
-            <div class="section-title" style="margin-top:5px;">CURRENT CONDITIONS</div>
-            <div class="current-weather-row" id="current-disp">
-                <div class="cur-stat"><div class="cur-label">Temp</div><div class="cur-val">67°</div></div>
-                <div class="cur-stat"><div class="cur-label">Feels Like</div><div class="cur-val">68°</div></div>
-                <div class="cur-stat"><div class="cur-label">Humidity</div><div class="cur-val">82%</div></div>
-                <div class="cur-stat"><div class="cur-label">Wind</div><div class="cur-val">6 MPH</div></div>
+            <div class="section-title">CURRENT CONDITIONS</div>
+            <div class="day-card current-box">
+                <div class="day-name" style="font-size: 18px;">ORLANDO</div>
+                <div class="weather-icon" style="font-size: 48px;">⛈️</div>
+                <div class="current-temp-large">67°</div>
             </div>
+
+            <div class="section-title" style="margin-top:10px;">3-DAY FORECAST</div>
+            <div class="weather-box" id="weather-disp"></div>
         </div>
     </div>
 
