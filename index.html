@@ -2,61 +2,186 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WDW Resort TV - Smooth Scroll</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WDW Resort TV - Broadcast Edition</title>
     <style>
-        :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
-        body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
-        .header { width: 100%; border-bottom: 5px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; box-sizing: border-box; align-items: center; }
-        .logo { font-size: 42px; font-weight: 900; letter-spacing: 2px; }
-        .clock { font-size: 38px; color: var(--disney-gold); font-weight: bold; }
-        .main-grid { display: flex; padding: 30px; height: calc(100vh - 200px); gap: 40px; }
-        .left-col { width: 55%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
-        .right-col { width: 45%; display: flex; flex-direction: column; }
-        .section-title { color: var(--disney-gold); font-size: 28px; font-weight: bold; border-bottom: 4px solid var(--disney-gold); margin-bottom: 15px; text-transform: uppercase; }
-        
-        /* The Scroll Window */
-        .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 5%, black 95%, transparent); }
-        #wait-list { position: absolute; width: 100%; top: 0; transition: transform 0.1s linear; }
-        
-        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.15); padding: 12px 0; font-size: 24px; display: flex; justify-content: space-between; }
-        .wait-val { color: var(--disney-gold); font-weight: 800; }
-        .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
-        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; text-transform: uppercase; border: 2px solid currentColor; }
+        :root { 
+            --disney-blue: #002266; 
+            --disney-gold: #FFCC00; 
+            --open-green: #00FF88; 
+            --closed-red: #FF4444; 
+        }
+
+        body { 
+            margin: 0; 
+            background: var(--disney-blue); 
+            color: white; 
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif; 
+            overflow: hidden; 
+            height: 100vh; 
+            letter-spacing: 1px;
+        }
+
+        /* Top Banner */
+        .header { 
+            width: 100%; 
+            border-bottom: 6px solid var(--disney-gold); 
+            background: linear-gradient(to bottom, #003399, #002266); 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 25px 50px; 
+            box-sizing: border-box; 
+            align-items: center; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .logo { 
+            font-size: 48px; 
+            font-weight: 900; 
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+        }
+
+        .clock { 
+            font-size: 42px; 
+            color: var(--disney-gold); 
+            font-weight: bold; 
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Main Content Grid */
+        .main-grid { 
+            display: flex; 
+            padding: 40px; 
+            height: calc(100vh - 220px); 
+            gap: 60px; 
+        }
+
+        .left-col { 
+            width: 58%; 
+            border-right: 4px solid var(--disney-gold); 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            padding-right: 30px; 
+        }
+
+        .right-col { 
+            width: 42%; 
+            display: flex; 
+            flex-direction: column; 
+        }
+
+        .section-title { 
+            color: var(--disney-gold); 
+            font-size: 32px; 
+            font-weight: bold; 
+            border-bottom: 4px solid var(--disney-gold); 
+            margin-bottom: 20px; 
+            text-transform: uppercase; 
+            padding-bottom: 10px;
+        }
+
+        /* Smooth Scrolling Window */
+        .scroll-window { 
+            flex-grow: 1; 
+            position: relative; 
+            overflow: hidden; 
+            /* Soft fade at top and bottom */
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        }
+
+        #wait-list { 
+            position: absolute; 
+            width: 100%; 
+            top: 0; 
+            will-change: transform;
+            transition: transform 0.1s linear;
+        }
+
+        .wait-item { 
+            border-bottom: 1px solid rgba(255,255,255,0.2); 
+            padding: 15px 0; 
+            font-size: 28px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+
+        .wait-val { 
+            color: var(--disney-gold); 
+            font-weight: 900; 
+            min-width: 120px; 
+            text-align: right;
+        }
+
+        /* Park Status Column */
+        .status-item { 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            padding: 20px 0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            font-size: 24px;
+        }
+
+        .status-pill { 
+            padding: 6px 18px; 
+            border-radius: 30px; 
+            font-size: 18px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            border: 3px solid currentColor;
+        }
+
         .is-open { color: var(--open-green); }
-        .is-closed { color: var(--closed-red); opacity: 0.6; }
-        .footer { position: fixed; bottom: 10px; right: 20px; font-size: 12px; opacity: 0.6; color: var(--disney-gold); }
+        .is-closed { color: var(--closed-red); opacity: 0.7; }
+
+        .footer { 
+            position: fixed; 
+            bottom: 15px; 
+            right: 30px; 
+            font-size: 14px; 
+            opacity: 0.5; 
+            color: var(--disney-gold); 
+        }
     </style>
 </head>
 <body>
+
     <div class="header">
         <div class="logo">WALT DISNEY WORLD</div>
         <div id="p-clock" class="clock">--:--</div>
     </div>
+
     <div class="main-grid">
         <div class="left-col">
             <div class="section-title" id="p-name">STATION STANDBY</div>
-            <div class="scroll-window"><div id="wait-list">Connecting...</div></div>
+            <div class="scroll-window">
+                <div id="wait-list">Connecting to Resort Data Feed...</div>
+            </div>
         </div>
+
         <div class="right-col">
             <div class="section-title">PARK STATUS</div>
-            <div id="status-disp">Initializing...</div>
+            <div id="status-disp">Updating...</div>
         </div>
     </div>
-    <div class="footer" id="last-update">Network Status: Online</div>
+
+    <div class="footer" id="last-update">Network: Syncing Disney Satellite...</div>
 
     <script>
         const PROXY = "https://api.allorigins.win/raw?url=";
         const parks = [
-            {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9", backup: ["Space Mountain", "Pirates of the Caribbean", "Haunted Mansion", "Big Thunder Mountain", "Seven Dwarfs Mine Train", "Jungle Cruise", "It's a Small World", "Peter Pan's Flight", "Buzz Lightyear", "TRON Lightcycle Run", "Tomorrowland Speedway", "The Barnstormer", "Dumbo"]}, 
-            {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b", backup: ["Frozen Ever After", "Soarin'", "Test Track", "Remy's Ratatouille Adventure", "Cosmic Rewind", "Spaceship Earth", "Living with the Land", "The Seas", "Figment", "Mission: SPACE"]}, 
-            {id:7, n:"Hollywood Studios", wiki:"288747d1-8b4f-4a4a-9897-5363d5fef940", backup: ["Slinky Dog Dash", "Tower of Terror", "Rock 'n' Roller Coaster", "Runaway Railway", "Rise of the Resistance", "Smugglers Run", "Toy Story Mania!", "Star Tours", "Indiana Jones"]}, 
-            {id:8, n:"Animal Kingdom", wiki:"1c8a40f3-d096-48d8-9419-f9c1186e885a", backup: ["Flight of Passage", "Expedition Everest", "Kilimanjaro Safaris", "Na'vi River Journey", "Dinosaur", "Kali River Rapids", "TriceraTop Spin"]}
+            {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9", backup: ["Space Mountain", "Pirates of the Caribbean", "Haunted Mansion", "Big Thunder Mountain", "Seven Dwarfs Mine Train", "Jungle Cruise", "It's a Small World", "Peter Pan's Flight", "Buzz Lightyear", "TRON Lightcycle Run", "Tomorrowland Speedway", "The Barnstormer", "Dumbo", "Enchanted Tales with Belle", "Mad Tea Party"]}, 
+            {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b", backup: ["Frozen Ever After", "Soarin' Around the World", "Test Track", "Remy's Ratatouille Adventure", "Guardians: Cosmic Rewind", "Spaceship Earth", "Living with the Land", "The Seas with Nemo", "Figment", "Mission: SPACE", "Gran Fiesta Tour"]}, 
+            {id:7, n:"Hollywood Studios", wiki:"288747d1-8b4f-4a4a-9897-5363d5fef940", backup: ["Slinky Dog Dash", "Tower of Terror", "Rock 'n' Roller Coaster", "Mickey & Minnie's Runaway Railway", "Star Wars: Rise of the Resistance", "Millennium Falcon: Smugglers Run", "Toy Story Mania!", "Star Tours", "Alien Swirling Saucers"]}, 
+            {id:8, n:"Animal Kingdom", wiki:"1c8a40f3-d096-48d8-9419-f9c1186e885a", backup: ["Avatar Flight of Passage", "Expedition Everest", "Kilimanjaro Safaris", "Na'vi River Journey", "DINOSAUR", "Kali River Rapids", "It's Tough to be a Bug!", "TriceraTop Spin"]}
         ];
         
         let curIdx = -1;
         let resortData = { status: {}, rides: {} };
         let scrollY = 0;
-        let direction = -1; // -1 for Down, 1 for Up
+        let direction = -1; // -1 = Down, 1 = Up
         let isPaused = false;
 
         async function syncData() {
@@ -64,6 +189,7 @@
             for (let p of parks) {
                 let ridesHTML = "";
                 try {
+                    // Fetch Status
                     const sUrl = encodeURIComponent(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live`);
                     const sRes = await fetch(PROXY + sUrl + cb);
                     const sData = await sRes.json();
@@ -71,6 +197,7 @@
                     const isOpen = (pEntry && pEntry.status === "OPERATING");
                     resortData.status[p.n] = isOpen ? { label: "Open", class: "is-open" } : { label: "Closed", class: "is-closed" };
 
+                    // Fetch Rides
                     const rUrl = encodeURIComponent(`https://queue-times.com/parks/${p.id}/queue_times.json`);
                     const rRes = await fetch(PROXY + rUrl + cb);
                     const rData = await rRes.json();
@@ -79,12 +206,23 @@
 
                     if (rides.length > 0) {
                         rides.sort((a,b) => b.wait_time - a.wait_time);
-                        ridesHTML = rides.map(r => `<div class="wait-item"><span>${r.name.toUpperCase()}</span><span class="wait-val">${(r.is_open && isOpen) ? r.wait_time + ' MIN' : 'CLOSED'}</span></div>`).join('');
+                        ridesHTML = rides.map(r => `
+                            <div class="wait-item">
+                                <span>${r.name.toUpperCase()}</span>
+                                <span class="wait-val">${(r.is_open && isOpen) ? r.wait_time + ' MIN' : 'CLOSED'}</span>
+                            </div>
+                        `).join('');
                     }
-                } catch (e) { console.warn("Using Backup for " + p.n); }
+                } catch (e) { console.warn("Syncing backup for " + p.n); }
 
+                // Fallback Logic
                 if (!ridesHTML) {
-                    ridesHTML = p.backup.map(name => `<div class="wait-item"><span>${name.toUpperCase()}</span><span class="wait-val">CLOSED</span></div>`).join('');
+                    ridesHTML = p.backup.map(name => `
+                        <div class="wait-item">
+                            <span>${name.toUpperCase()}</span>
+                            <span class="wait-val">CLOSED</span>
+                        </div>
+                    `).join('');
                     if (!resortData.status[p.n]) resortData.status[p.n] = { label: "Closed", class: "is-closed" };
                 }
                 resortData.rides[p.n] = ridesHTML;
@@ -107,12 +245,18 @@
             isPaused = true;
             curIdx = (curIdx + 1) % parks.length;
             const p = parks[curIdx];
+            
             document.getElementById('p-name').innerText = p.n.toUpperCase();
-            document.getElementById('wait-list').innerHTML = resortData.rides[p.n];
+            const listElement = document.getElementById('wait-list');
+            listElement.innerHTML = resortData.rides[p.n];
+            
+            // Reset position
             scrollY = 0;
             direction = -1;
-            document.getElementById('wait-list').style.transform = `translateY(0px)`;
-            setTimeout(() => { isPaused = false; }, 2000); // Wait 2s before starting scroll
+            listElement.style.transform = `translateY(0px)`;
+            
+            // Wait 3 seconds at the top before starting the first scroll
+            setTimeout(() => { isPaused = false; }, 3000); 
         }
 
         function animate() {
@@ -121,22 +265,24 @@
             const list = document.getElementById('wait-list');
             const containerHeight = document.querySelector('.scroll-window').offsetHeight;
             const listHeight = list.offsetHeight;
-            const maxScroll = listHeight - containerHeight + 40; // Extra padding
-
+            
+            // If the list is taller than the window, we scroll
             if (listHeight > containerHeight) {
-                scrollY += (0.6 * direction);
+                const maxScroll = (listHeight - containerHeight) + 40; // 40px padding for the bottom
                 
-                // Hit Bottom
+                scrollY += (0.8 * direction); // Speed factor
+                
+                // Logic for hitting the bottom
                 if (Math.abs(scrollY) >= maxScroll && direction === -1) {
                     isPaused = true;
-                    direction = 1; // Change to Up
-                    setTimeout(() => { isPaused = false; }, 3000); // Pause at bottom
+                    direction = 1; // Reverse to up
+                    setTimeout(() => { isPaused = false; }, 4000); // Wait 4s at bottom
                 } 
-                // Hit Top
+                // Logic for hitting the top
                 else if (scrollY >= 0 && direction === 1) {
                     isPaused = true;
-                    direction = -1; // Change to Down
-                    setTimeout(() => { isPaused = false; }, 3000); // Pause at top
+                    direction = -1; // Reverse to down
+                    setTimeout(() => { isPaused = false; }, 4000); // Wait 4s at top
                 }
                 
                 list.style.transform = `translateY(${scrollY}px)`;
@@ -144,16 +290,18 @@
             requestAnimationFrame(animate);
         }
 
+        // Live Clock
         setInterval(() => {
             document.getElementById('p-clock').innerText = new Date().toLocaleTimeString([], {
                 hour:'2-digit', minute:'2-digit', timeZone: 'America/New_York'
             });
         }, 1000);
 
+        // Initialization
         syncData(); 
-        setInterval(syncData, 300000); 
+        setInterval(syncData, 300000); // Refresh data every 5 mins
         animate(); 
-        setInterval(rotate, 45000); // Rotate park every 45 seconds
+        setInterval(rotate, 50000); // Switch parks every 50 seconds
     </script>
 </body>
 </html>
