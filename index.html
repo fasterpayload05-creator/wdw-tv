@@ -2,44 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WDW Resort TV - Segmented Sync</title>
+    <title>WDW Resort TV - Pro Sync</title>
     <style>
         :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
         * { box-sizing: border-box; }
         body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
         
-        /* Layout Sections */
-        .header { width: 100%; border-bottom: 6px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 20px 40px; align-items: center; }
-        .logo { font-size: 38px; font-weight: 900; letter-spacing: 2px; }
-        .clock { font-size: 34px; color: var(--disney-gold); font-weight: bold; }
+        /* Header */
+        .header { width: 100%; border-bottom: 6px solid var(--disney-gold); background: #003399; display: flex; justify-content: space-between; padding: 15px 40px; align-items: center; }
+        .logo { font-size: 32px; font-weight: 900; letter-spacing: 2px; }
+        .clock { font-size: 30px; color: var(--disney-gold); font-weight: bold; }
 
-        .main-grid { display: flex; padding: 20px; height: calc(100vh - 140px); gap: 25px; }
+        /* Layout */
+        .main-grid { display: flex; padding: 20px; height: calc(100vh - 120px); gap: 25px; }
         .left-col { width: 50%; border-right: 4px solid var(--disney-gold); position: relative; display: flex; flex-direction: column; padding-right: 20px; }
         .right-col { width: 50%; display: flex; flex-direction: column; gap: 15px; }
 
-        .section-container { position: relative; flex-grow: 1; display: flex; flex-direction: column; }
-        .section-title { color: var(--disney-gold); font-size: 20px; font-weight: bold; border-bottom: 3px solid var(--disney-gold); margin-bottom: 10px; text-transform: uppercase; padding-bottom: 4px; }
+        /* Section Styling */
+        .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--disney-gold); margin-bottom: 10px; padding-bottom: 4px; }
+        .section-title { color: var(--disney-gold); font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; }
         
-        /* Sync Labels */
-        .sync-label { position: absolute; bottom: -18px; right: 0; font-size: 10px; color: var(--disney-gold); opacity: 0.6; font-weight: bold; text-transform: uppercase; }
+        /* Sync Buttons */
+        .sync-btn { background: var(--disney-gold); color: var(--disney-blue); border: none; padding: 2px 10px; font-size: 10px; font-weight: 900; border-radius: 4px; cursor: pointer; text-transform: uppercase; transition: transform 0.2s; }
+        .sync-btn:active { transform: scale(0.9); }
+        .sync-btn.loading { background: #888; cursor: wait; }
 
-        /* Wait Times */
+        /* Content Areas */
         .scroll-window { flex-grow: 1; position: relative; overflow: hidden; mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent); }
         #wait-list { position: absolute; width: 100%; top: 0; transition: transform 0.1s linear; }
-        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; font-size: 19px; display: flex; justify-content: space-between; }
+        .wait-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 8px 0; font-size: 18px; display: flex; justify-content: space-between; }
         .wait-val { color: var(--disney-gold); font-weight: bold; }
 
-        /* Status & Weather */
-        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
-        .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 5px 0; display: flex; justify-content: space-between; font-size: 15px; }
-        .status-pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 900; border: 2px solid currentColor; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .status-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 5px 0; display: flex; justify-content: space-between; font-size: 14px; }
+        .status-pill { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 900; border: 2px solid currentColor; }
         
-        .day-card { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 2px solid var(--disney-gold); text-align: center; }
+        .weather-card { background: rgba(0,0,0,0.2); border-radius: 8px; border: 2px solid var(--disney-gold); padding: 12px; }
         .weather-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        .current-box { display: flex; align-items: center; justify-content: space-around; background: rgba(255,204,0,0.1); margin-bottom: 20px; }
+        .current-box { display: flex; align-items: center; justify-content: space-around; background: rgba(255,204,0,0.1); margin-bottom: 10px; }
 
         .is-open { color: var(--open-green); }
         .is-closed { color: var(--closed-red); opacity: 0.6; }
+        .sync-ts { font-size: 9px; color: var(--disney-gold); opacity: 0.5; margin-top: 4px; text-align: right; }
     </style>
 </head>
 <body>
@@ -49,39 +53,47 @@
     </div>
 
     <div class="main-grid">
-        <div class="left-col section-container">
-            <div class="section-title" id="p-name">STATION STANDBY</div>
-            <div class="scroll-window"><div id="wait-list">SATELLITE SYNC...</div></div>
-            <div class="sync-label" id="sync-waits">WAIT SYNC: PENDING</div>
+        <div class="left-col">
+            <div class="section-header">
+                <h2 class="section-title" id="p-name">STATION STANDBY</h2>
+                <button class="sync-btn" onclick="syncWaitTimes(this)">Re-Sync Waits</button>
+            </div>
+            <div class="scroll-window"><div id="wait-list">INITIALIZING LINK...</div></div>
+            <div id="ts-waits" class="sync-ts">WAIT SYNC: PENDING</div>
         </div>
 
         <div class="right-col">
-            <div class="section-container" style="flex-grow: 0;">
-                <div class="section-title">RESORT PARK STATUS</div>
-                <div id="status-disp" class="status-grid">Updating...</div>
-                <div class="sync-label" id="sync-status">STATUS SYNC: PENDING</div>
-            </div>
-
-            <div class="section-container" style="flex-grow: 0;">
-                <div class="section-title">CURRENT CONDITIONS</div>
-                <div class="day-card current-box">
-                    <div style="font-weight:bold; color:var(--disney-gold)">ORLANDO</div>
-                    <div id="cur-icon" style="font-size:48px;">⛅</div>
-                    <div id="cur-temp" style="font-size:38px; font-weight:900;">74°</div>
+            <div>
+                <div class="section-header">
+                    <h2 class="section-title">PARK STATUS</h2>
+                    <button class="sync-btn" onclick="syncStatus(this)">Re-Sync Status</button>
                 </div>
-                <div class="sync-label" id="sync-cur-weather">WX SYNC: PENDING</div>
+                <div id="status-disp" class="status-grid">Updating...</div>
+                <div id="ts-status" class="sync-ts">STATUS SYNC: PENDING</div>
             </div>
 
-            <div class="section-container">
-                <div class="section-title">3-DAY FORECAST</div>
+            <div style="margin-top:10px;">
+                <h2 class="section-title" style="border-bottom: 3px solid var(--disney-gold); margin-bottom:10px; padding-bottom:4px;">CURRENT CONDITIONS</h2>
+                <div class="weather-card current-box">
+                    <div style="font-weight:bold; color:var(--disney-gold)">ORLANDO</div>
+                    <div id="cur-icon" style="font-size:44px;">⛅</div>
+                    <div id="cur-temp" style="font-size:34px; font-weight:900;">74°</div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="section-title" style="border-bottom: 3px solid var(--disney-gold); margin-bottom:10px; padding-bottom:4px;">3-DAY FORECAST</h2>
                 <div class="weather-box" id="weather-disp"></div>
-                <div class="sync-label" id="sync-forecast">DAILY SYNC: PENDING</div>
             </div>
         </div>
     </div>
 
     <script>
-        const PROXY = "https://api.allorigins.win/raw?url=";
+        const PROXIES = [
+            "https://api.allorigins.win/raw?url=",
+            "https://corsproxy.io/?"
+        ];
+        
         const parks = [
             {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9"}, 
             {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b"}, 
@@ -91,67 +103,70 @@
 
         let curIdx = -1, resortData = { status: {}, rides: {} }, scrollY = 0, direction = -1, isPaused = true;
 
-        // --- 2 MINUTE SYNC: Wait Times ---
-        async function syncWaitTimes() {
+        async function fetchWithFailover(url) {
+            for (let proxy of PROXIES) {
+                try {
+                    const res = await fetch(proxy + encodeURIComponent(url) + "&cb=" + Date.now());
+                    if (res.ok) return await res.json();
+                } catch (e) { continue; }
+            }
+            throw new Error("All proxies failed");
+        }
+
+        async function syncWaitTimes(btn) {
+            if (btn) btn.classList.add('loading');
             for (let p of parks) {
                 try {
-                    const url = `https://queue-times.com/parks/${p.id}/queue_times.json`;
-                    const res = await fetch(PROXY + encodeURIComponent(url) + "&cb=" + Date.now());
-                    const data = await res.json();
+                    const data = await fetchWithFailover(`https://queue-times.com/parks/${p.id}/queue_times.json`);
                     let rides = [];
                     data.lands.forEach(l => l.rides.forEach(r => rides.push(r)));
                     rides.sort((a,b) => b.wait_time - a.wait_time);
                     resortData.rides[p.n] = rides.map(r => `
                         <div class="wait-item"><span>${r.name.toUpperCase()}</span><span class="wait-val">${r.is_open ? r.wait_time + ' MIN' : 'CLOSED'}</span></div>
                     `).join('');
-                } catch (e) { console.log("Wait sync fail"); }
+                } catch (e) { resortData.rides[p.n] = `<div class="wait-item"><span>CONNECTION BUSY...</span></div>`; }
             }
             if (curIdx === -1) rotate();
-            document.getElementById('sync-waits').innerText = "WAIT SYNC: " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            document.getElementById('ts-waits').innerText = "WAIT SYNC: " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            if (btn) btn.classList.remove('loading');
         }
 
-        // --- 5 MINUTE SYNC: Resort Status ---
-        async function syncStatus() {
+        async function syncStatus(btn) {
+            if (btn) btn.classList.add('loading');
             let html = '';
             for (let p of parks) {
                 try {
-                    const url = `https://api.themeparks.wiki/v1/entity/${p.wiki}/live`;
-                    const res = await fetch(PROXY + encodeURIComponent(url));
-                    const data = await res.json();
-                    const isOpen = data.find(i => i.entityType === "PARK")?.status === "OPERATING";
+                    const data = await fetchWithFailover(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live`);
+                    const parkEntity = data.find(i => i.entityType === "PARK") || data[0];
+                    const isOpen = parkEntity?.status === "OPERATING" || parkEntity?.status === "OPEN";
                     const s = isOpen ? { l: "Open", c: "is-open" } : { l: "Closed", c: "is-closed" };
                     html += `<div class="status-item"><b>${p.n}</b><span class="status-pill ${s.c}">${s.l}</span></div>`;
-                } catch (e) { html += `<div class="status-item"><b>${p.n}</b><span class="status-pill is-closed">OFFLINE</span></div>`; }
+                } catch (e) { html += `<div class="status-item"><b>${p.n}</b><span class="status-pill is-closed">RETRYING</span></div>`; }
             }
             document.getElementById('status-disp').innerHTML = html;
-            document.getElementById('sync-status').innerText = "STATUS SYNC: " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            document.getElementById('ts-status').innerText = "STATUS SYNC: " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            if (btn) btn.classList.remove('loading');
         }
 
-        // --- 1 HOUR SYNC: Current Weather ---
         async function syncCurrentWeather() {
             try {
                 const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=28.3852&longitude=-81.5639&current_weather=true");
                 const data = await res.json();
-                const temp = Math.round(data.current_weather.temperature * 9/5 + 32);
-                document.getElementById('cur-temp').innerText = temp + "°";
-                document.getElementById('sync-cur-weather').innerText = "WX SYNC: " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            } catch (e) { console.log("Weather fail"); }
+                document.getElementById('cur-temp').innerText = Math.round(data.current_weather.temperature * 9/5 + 32) + "°";
+            } catch (e) { console.log("WX fail"); }
         }
 
-        // --- DAILY SYNC: 3-Day Forecast ---
         function syncForecast() {
             const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
             const forecast = [{ i: "⛈️", h: 79 }, { i: "☀️", h: 82 }, { i: "⛅", h: 85 }];
             let html = "";
             forecast.forEach((f, i) => {
                 const d = new Date(); d.setDate(d.getDate() + i);
-                html += `<div class="day-card"><div>${i === 0 ? "TODAY" : days[d.getDay()]}</div><div style="font-size:30px">${f.i}</div><div style="font-weight:bold">${f.h}°</div></div>`;
+                html += `<div class="day-card"><div>${i === 0 ? "TODAY" : days[d.getDay()]}</div><div style="font-size:26px">${f.i}</div><div style="font-weight:bold">${f.h}°</div></div>`;
             });
             document.getElementById('weather-disp').innerHTML = html;
-            document.getElementById('sync-forecast').innerText = "DAILY SYNC: " + new Date().toLocaleDateString();
         }
 
-        // --- View & Animation Logic ---
         function rotate() {
             isPaused = true;
             curIdx = (curIdx + 1) % 4;
@@ -181,15 +196,12 @@
             requestAnimationFrame(animate);
         }
 
-        // Intervals & Handlers
         setInterval(() => { document.getElementById('p-clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', timeZone: 'America/New_York'}); }, 1000);
-        setInterval(syncWaitTimes, 120000);   // 2 Mins
-        setInterval(syncStatus, 300000);      // 5 Mins
-        setInterval(syncCurrentWeather, 3600000); // 1 Hour
-        setInterval(syncForecast, 86400000);  // 24 Hours
-        setInterval(rotate, 45000);           // Rotate every 45s
+        setInterval(() => syncWaitTimes(), 120000);
+        setInterval(() => syncStatus(), 300000);
+        setInterval(syncCurrentWeather, 3600000);
+        setInterval(rotate, 45000);
 
-        // Initial Boot
         syncWaitTimes(); syncStatus(); syncCurrentWeather(); syncForecast(); animate();
     </script>
 </body>
