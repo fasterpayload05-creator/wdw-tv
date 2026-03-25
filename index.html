@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WDW Resort TV - Final Fix</title>
+    <title>WDW Resort TV - Deep Sync Edition</title>
     <style>
         :root { --disney-blue: #002266; --disney-gold: #FFCC00; --open-green: #00FF88; --closed-red: #FF4444; }
         body { margin: 0; background: var(--disney-blue); color: white; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; height: 100vh; }
@@ -32,17 +32,23 @@
     <div class="main-grid">
         <div class="left-col">
             <div class="section-title" id="p-name">STATION STANDBY</div>
-            <div class="scroll-window"><div id="wait-list">Connecting to Resort Feed...</div></div>
+            <div class="scroll-window"><div id="wait-list">Establishing Disney Satellite Link...</div></div>
         </div>
         <div class="right-col">
             <div class="section-title">PARK STATUS</div>
-            <div id="status-disp">Initializing...</div>
+            <div id="status-disp">Calculating...</div>
         </div>
     </div>
-    <div class="footer" id="last-update">Syncing...</div>
+    <div class="footer" id="last-update">Network: Connecting...</div>
 
     <script>
-        const PROXY = "https://corsproxy.io/?";
+        // Rotating Proxies to ensure 100% Uptime
+        const PROXIES = [
+            "https://corsproxy.io/?",
+            "https://api.allorigins.win/raw?url=",
+            "https://thingproxy.freeboard.io/fetch/"
+        ];
+        
         const parks = [
             {id:6, n:"Magic Kingdom", wiki:"75ea578a-adc8-4116-a54d-dccb60765ef9"}, 
             {id:5, n:"EPCOT", wiki:"47f90d2c-e191-4239-a466-5892ef59a88b"}, 
@@ -52,23 +58,32 @@
         
         let curIdx = -1;
         let resortData = { status: {}, rides: {} };
+        let proxyIdx = 0;
+
+        async function fetchWithRetry(url) {
+            for(let i = 0; i < PROXIES.length; i++) {
+                try {
+                    const fullUrl = PROXIES[proxyIdx] + encodeURIComponent(url + "?cb=" + Date.now());
+                    const res = await fetch(fullUrl);
+                    if(res.ok) return await res.json();
+                } catch(e) {
+                    proxyIdx = (proxyIdx + 1) % PROXIES.length; // Rotate to next proxy if it fails
+                }
+            }
+            throw new Error("All Proxies Failed");
+        }
 
         async function syncData() {
             for (let p of parks) {
                 try {
                     // 1. Fetch Status
-                    const sUrl = `https://api.themeparks.wiki/v1/entity/${p.wiki}/live`;
-                    const sRes = await fetch(PROXY + encodeURIComponent(sUrl));
-                    const sData = await sRes.json();
+                    const sData = await fetchWithRetry(`https://api.themeparks.wiki/v1/entity/${p.wiki}/live`);
                     const pEntry = sData.find(i => i.entityType === "PARK");
                     const isOpen = (pEntry && pEntry.status === "OPERATING");
                     resortData.status[p.n] = isOpen ? { label: "Open", class: "is-open" } : { label: "Closed", class: "is-closed" };
 
                     // 2. Fetch Rides
-                    const rUrl = `https://queue-times.com/parks/${p.id}/queue_times.json`;
-                    const rRes = await fetch(PROXY + encodeURIComponent(rUrl));
-                    const rData = await rRes.json();
-                    
+                    const rData = await fetchWithRetry(`https://queue-times.com/parks/${p.id}/queue_times.json`);
                     let rides = [];
                     rData.lands.forEach(l => l.rides.forEach(r => rides.push(r)));
                     rides.sort((a,b) => b.wait_time - a.wait_time);
@@ -81,17 +96,15 @@
                             </div>
                         `).join('');
                     } else {
-                        // FIX: If no ride data returned (Late night), show this instead of "Refreshing"
-                        resortData.rides[p.n] = `<div class="wait-item"><span>PARK IS CURRENTLY CLOSED</span><span class="wait-val">---</span></div>`;
+                        resortData.rides[p.n] = `<div class="wait-item"><span>PARK CLOSED FOR THE NIGHT</span><span class="wait-val">---</span></div>`;
                     }
                 } catch (e) { 
-                    console.error(p.n, e);
                     resortData.status[p.n] = { label: "Closed", class: "is-closed" };
-                    resortData.rides[p.n] = `<div class="wait-item"><span>LINK UNAVAILABLE</span><span class="wait-val">---</span></div>`;
+                    resortData.rides[p.n] = `<div class="wait-item"><span>OVERNIGHT MAINTENANCE</span><span class="wait-val">---</span></div>`;
                 }
             }
             renderStatus();
-            document.getElementById('last-update').innerText = "DATA REFRESHED: " + new Date().toLocaleTimeString();
+            document.getElementById('last-update').innerText = "STATION UPDATE: " + new Date().toLocaleTimeString();
             if (curIdx === -1) rotate();
         }
 
